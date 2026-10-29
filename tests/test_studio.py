@@ -138,6 +138,7 @@ class StudioTests(unittest.TestCase):
                 self.assertEqual(info[2], 30)
                 self.assertEqual(info[3], 'h264')
                 self.assertEqual(len(frames), 36)
+                self.assertEqual(frames[0].pts, 0)
                 self.assertTrue(audio)
                 self.assertGreater(max(np.abs(a).max() for a in audio), 0.05)
                 self.assertIn('Xin chào Việt Nam!', target.with_suffix('.srt').read_text(encoding='utf-8-sig'))
@@ -162,6 +163,11 @@ class StudioTests(unittest.TestCase):
         info, frames, audio = inspect_video(target)
         self.assertEqual(info[:2], (640, 360))
         self.assertEqual(len(frames), 72)
+        self.assertEqual(frames[0].pts, 0)
+        with av.open(str(target)) as timeline:
+            for stream in timeline.streams:
+                self.assertLessEqual(abs(float(stream.duration * stream.time_base) - 2.4), 1/30)
+                self.assertEqual(stream.start_time, 0)
         self.assertTrue(audio)
         self.assertIn('00:00:01,200 --> 00:00:02,400', target.with_suffix('.srt').read_text(encoding='utf-8-sig'))
         from merge_scenes import _ffmpeg_concat_copy

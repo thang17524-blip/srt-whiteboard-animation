@@ -49,7 +49,9 @@ def render_project(project, root, output, preview=False, progress=None, cancel=N
                 raise CancelledError('Đã hủy tạo video.')
             image, ann = prepared_scene(scene, root, size)
             raw = work / f'raw-{i}.mp4'
-            clip = work / f'clip-{i}.mp4'
+            # PCM trong MOV không có độ trễ AAC ở mỗi cảnh. Chỉ mã hóa AAC một lần
+            # sau khi nối để không cộng dồn khoảng trễ bộ mã hóa qua nhiều cảnh.
+            clip = work / f'clip-{i}.mov'
             renderer = RegionStreamRenderer(np.asarray(image)[:, :, ::-1].copy(), ann, cfg,
                                             ROOT / 'assets/drawing-hand.png', not project.get('showHand', True))
             def report(value):
@@ -63,7 +65,7 @@ def render_project(project, root, output, preview=False, progress=None, cancel=N
             else:
                 audio_args = ['-f', 'lavfi', '-i', 'anullsrc=r=48000:cl=stereo']
             run_ffmpeg(['-i', raw, *audio_args, '-map', '0:v:0', '-map', '1:a:0',
-                        '-c:v', 'copy', '-af', 'apad', '-c:a', 'aac', '-ar', '48000', '-ac', '2',
+                        '-c:v', 'copy', '-af', 'apad', '-c:a', 'pcm_s16le', '-ar', '48000', '-ac', '2',
                         '-t', f'{duration:.6f}', '-movflags', '+faststart', clip], cancel)
             rendered.append(clip)
             if scene.get('script', '').strip():
@@ -74,7 +76,9 @@ def render_project(project, root, output, preview=False, progress=None, cancel=N
         listing = work / 'clips.txt'
         listing.write_text(''.join("file '" + str(p.resolve()).replace('\\', '/').replace("'", "'\\''") + "'\n" for p in rendered), encoding='utf-8')
         combined = work / 'complete.mp4'
-        run_ffmpeg(['-f', 'concat', '-safe', '0', '-i', listing, '-c', 'copy', '-movflags', '+faststart', combined], cancel)
+        run_ffmpeg(['-f', 'concat', '-safe', '0', '-i', listing, '-c:v', 'copy',
+                    '-c:a', 'aac', '-ar', '48000', '-ac', '2', '-t', f'{offset/1000:.6f}',
+                    '-movflags', '+faststart', combined], cancel)
         if cancel is not None and cancel.is_set():
             raise CancelledError('Đã hủy tạo video.')
         subtitle_file = work / 'complete.srt'

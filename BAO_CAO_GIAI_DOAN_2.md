@@ -19,14 +19,15 @@ Nhánh phát triển: `feat/windows-vietnamese-studio`, bắt đầu từ `696a7
 - Chuẩn hóa số khung hình để không tự kéo dài video ngoài thời lượng đã kiểm tra.
 - Sửa duyệt gói mã hóa PyAV trong chuyển mã H.264.
 - Ghép bằng FFmpeg có chuẩn hóa tỷ lệ, tốc độ hình và âm thanh; nhánh PyAV dự phòng báo lỗi nếu có âm thanh để không âm thầm làm mất tiếng.
+- Dùng PCM trong MOV ở bước trung gian và chỉ mã hóa AAC một lần sau khi nối; tránh cộng dồn độ trễ AAC qua từng cảnh.
 - Giữ toàn bộ công cụ gốc. Trình chỉnh HTML cập nhật lịch vẽ khi đổi thứ tự danh sách.
 
 ## Bằng chứng kiểm thử thực tế
 
 Môi trường: Windows, Python 3.13.17 64-bit; bộ phiên bản trong `requirements-tested-windows.txt`.
 
-1. Chạy toàn bộ bộ kiểm thử khi có 14 trường hợp: **14/14 đạt trong 110,159 giây**.
-2. Bổ sung kiểm thử nút thêm giọng đọc và xuất MP4 qua Tk; chạy lại nhóm giao diện: **4/4 đạt trong 2,616 giây**. Hiện có tổng cộng **15 trường hợp kiểm thử duy nhất**, tất cả đã chạy đạt.
+1. Lượt kiểm thử cuối sau khi sửa độ trễ âm thanh: **15/15 đạt trong 112,212 giây**.
+2. Có bốn kiểm thử giao diện, bao gồm thêm giọng đọc và xuất Full HD qua Tk. Kiểm thử ghép xác nhận hình và tiếng bắt đầu ở mốc 0, thời lượng hai luồng đúng trong sai số một khung hình. Hai video mẫu Full HD dài 1,2 giây có thời lượng hình và tiếng cùng bằng 1,2 giây.
 3. Tạo và giải mã hai video Full HD thật, mỗi video 36 hình ở 30 hình/giây; xác nhận kích thước chính xác, H.264, có âm thanh AAC và tín hiệu âm thanh khác im lặng. Tín hiệu thử là sóng âm tổng hợp, không phải giọng AI.
 4. Kiểm tra khung đầu sạch, khung cuối có hình, vùng tương lai bị che; xem trực tiếp các ảnh khung giữa có tài sản bàn tay ở cả hai tỷ lệ.
 5. Ghép video nhiều cảnh, kiểm tra số hình và SRT; kiểm tra đường dẫn có dấu tiếng Việt và dấu nháy đơn.
@@ -37,7 +38,7 @@ Môi trường: Windows, Python 3.13.17 64-bit; bộ phiên bản trong `require
 
 Kiểm tra môi trường xác nhận Tcl/Tk, H.264, AAC và FFmpeg có sẵn. Sandbox không khởi tạo được Tcl; nhóm giao diện đã chạy lại thành công ngoài sandbox. Công cụ chụp cửa sổ Windows bị hết thời gian hai lần, vì vậy **chưa xác nhận trực quan toàn bộ bố cục giao diện bằng ảnh chụp**, và chưa xác nhận phát âm thanh qua trình phát mặc định bằng thao tác thủ công. Không coi việc kiểm thử callback mở trình phát là bằng chứng đã nghe được lời đọc.
 
-Workflow GitHub Actions Windows được bổ sung; kết quả chạy cục bộ ở trên không thay thế trạng thái CI từ GitHub. Chưa xác nhận cài đặt trên một máy Windows sạch khác; các tệp CMD đã được cung cấp nhưng chưa tự động chạy toàn bộ bộ cài tương tác từ đầu.
+Workflow GitHub Actions Windows được bổ sung. Bản đầu trên PR #1 đã chạy CI thành công; trạng thái CI của bản sửa mới nhất cần xem trực tiếp tại PR. Chưa xác nhận cài đặt trên một máy Windows sạch khác; các tệp CMD đã được cung cấp nhưng chưa tự động chạy toàn bộ bộ cài tương tác từ đầu.
 
 ## Chưa hoàn thành / giới hạn
 

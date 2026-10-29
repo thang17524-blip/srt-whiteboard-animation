@@ -36,18 +36,19 @@ def _ffmpeg_concat_copy(inputs: list[Path], output: Path) -> bool:
                     has_audio = bool(source.streams.audio)
                     stream = source.streams.video[0]
                     duration = float(stream.duration * stream.time_base) if stream.duration is not None else float(source.duration / av.time_base)
-                clip = Path(folder) / f'{i}.mp4'
+                clip = Path(folder) / f'{i}.mov'
                 audio = [] if has_audio else ['-f', 'lavfi', '-i', 'anullsrc=r=48000:cl=stereo']
                 audio_map = '0:a:0' if has_audio else '1:a:0'
                 run_ffmpeg(['-i', path, *audio, '-map', '0:v:0', '-map', audio_map,
                             '-vf', f'scale={width}:{height}:force_original_aspect_ratio=decrease,pad={width}:{height}:(ow-iw)/2:(oh-ih)/2,setsar=1',
                             '-r', str(fps), '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20', '-pix_fmt', 'yuv420p',
-                            '-af', 'apad', '-c:a', 'aac', '-ar', '48000', '-ac', '2', '-t', str(duration), clip])
+                            '-af', 'apad', '-c:a', 'pcm_s16le', '-ar', '48000', '-ac', '2', '-t', str(duration), clip])
                 clips.append(clip)
             listing = Path(folder) / 'concat.txt'
             listing.write_text(''.join("file '" + p.as_posix().replace("'", "'\\''") + "'\n" for p in clips), encoding='utf-8')
             complete = Path(folder) / 'complete.mp4'
-            run_ffmpeg(['-f', 'concat', '-safe', '0', '-i', listing, '-c', 'copy', '-movflags', '+faststart', complete])
+            run_ffmpeg(['-f', 'concat', '-safe', '0', '-i', listing, '-c:v', 'copy',
+                        '-c:a', 'aac', '-ar', '48000', '-ac', '2', '-movflags', '+faststart', complete])
             import shutil as file_tools
             file_tools.copyfile(complete, output)
         return True
