@@ -1,5 +1,13 @@
 # SRT 白板动画 Skill
 
+## Ứng dụng Windows tiếng Việt (Giai đoạn 2)
+
+Chạy `cai_dat_windows.cmd` lần đầu, sau đó mở `chay_windows.cmd`.
+Ứng dụng hỗ trợ dự án nhiều cảnh, ảnh, giọng đọc có sẵn, bàn tay vẽ, xem trước MP4 và xuất Full HD ngang/dọc.
+Không dùng API trả phí; chưa tích hợp AI tạo kịch bản/ảnh/giọng.
+Xem [hướng dẫn tiếng Việt](HUONG_DAN_WINDOWS.md) và [báo cáo kiểm thử](BAO_CAO_GIAI_DOAN_2.md).
+Các công cụ gốc bên dưới được giữ lại.
+
 将 SRT 字幕转为按叙事顺序绘制的白板手绘视频Skill。它结合了**分区遮罩编排**与**流式笔迹绘制**：每个元素跟随字幕依次出场，笔尖在区域内连续落墨，再逐步添彩，最终导出 MP4。
 
 适合把知识讲解、故事口播、课程字幕或短视频文案制作成暖米黄色纸张底的手绘动画。

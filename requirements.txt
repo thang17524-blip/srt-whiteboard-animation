@@ -1,0 +1,5 @@
+numpy>=2.2,<3
+opencv-python>=4.11,<6
+av>=14,<20
+Pillow>=11,<14
+imageio-ffmpeg>=0.6,<0.8

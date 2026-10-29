@@ -9,7 +9,11 @@ def main(image_path: str, annotation_path: str, output_path: str) -> None:
     image = Image.open(image_path).convert("RGBA")
     overlay = Image.new("RGBA", image.size, (0, 0, 0, 0))
     draw = ImageDraw.Draw(overlay)
-    font_file = "C:/Windows/Fonts/msyh.ttc"
+    font_file = next((str(p) for p in [Path('C:/Windows/Fonts/arial.ttf'),
+                     Path('C:/Windows/Fonts/msyh.ttc'),
+                     Path('/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf')] if p.exists()), None)
+    if font_file is None:
+        raise RuntimeError('Không tìm thấy phông hỗ trợ tiếng Việt. Hãy cài Arial hoặc DejaVu Sans.')
     font = ImageFont.truetype(font_file, 28)
     small_font = ImageFont.truetype(font_file, 18)
     colors = [(38, 103, 255, 225), (255, 105, 92, 225), (41, 167, 102, 225), (181, 100, 255, 225)]

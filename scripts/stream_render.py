@@ -41,7 +41,10 @@ def _imread_any(path: str | Path, flags: int = cv2.IMREAD_COLOR) -> np.ndarray |
     先用 np.fromfile 读字节，再交给 cv2.imdecode 解码，
     绕过 cv2.imread 对非 ASCII 路径的兼容性问题。
     """
-    raw = np.fromfile(str(path), dtype=np.uint8)
+    try:
+        raw = np.fromfile(str(path), dtype=np.uint8)
+    except OSError:
+        return None
     if raw.size == 0:
         return None
     return cv2.imdecode(raw, flags)
@@ -56,6 +59,8 @@ class Config:
     grid_edge: int = 10            # 更小的网格减少线稿揭示的块状感
     sample_step: int = 2           # 笔尖轨迹的像素采样间距
     cap_long_edge: int = 1080      # 输入图长边上限
+    output_width: int | None = None
+    output_height: int | None = None
     brush_radius: int = 40         # 添彩阶段圆形墨刷半径
     ink_weight: int = 2            # 线稿段权重：为观察笔迹留出更多时间
     color_weight: int = 1          # 添彩段权重
@@ -1668,12 +1673,10 @@ def _transcode_with_pyav(src: Path, dst: Path) -> Path:
     out_stream.options = {"crf": "28", "preset": "medium"}
 
     for frame in input_container.decode(video=0):
-        packet = out_stream.encode(frame)
-        if packet:
+        for packet in out_stream.encode(frame):
             output_container.mux(packet)
     # flush
-    packet = out_stream.encode(None)
-    if packet:
+    for packet in out_stream.encode(None):
         output_container.mux(packet)
 
     output_container.close()
