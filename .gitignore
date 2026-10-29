@@ -17,3 +17,6 @@ Thumbs.db
 dist/
 build/
 *.json.tmp
+
+# Video thuộc bộ mẫu tiếng Việt được giữ trong kho
+!examples/bo-mau-trong-cay/video-xem-truoc.mp4

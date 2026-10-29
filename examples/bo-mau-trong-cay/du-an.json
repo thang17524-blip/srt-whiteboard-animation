@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "name": "Trồng một cây xanh mỗi ngày",
+  "aspectRatio": "16:9",
+  "fps": 30,
+  "paper": "#F6F1E3",
+  "showHand": true,
+  "scenes": [
+    {
+      "id": "trong-cay-01",
+      "name": "Trồng cây và tưới nước",
+      "script": "Mỗi ngày, một hành động nhỏ có thể tạo nên thay đổi lớn. Hãy bắt đầu bằng việc trồng một cây xanh và chăm sóc nó. Tưới nước đều đặn, cây sẽ lớn lên từng ngày.",
+      "image": "media/anh-trong-cay.png",
+      "audio": "media/giong-doc.wav",
+      "annotation": "",
+      "durationMs": 9000
+    }
+  ]
+}
