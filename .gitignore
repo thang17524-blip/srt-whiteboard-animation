@@ -11,3 +11,9 @@ venv/
 # OS
 Thumbs.db
 .DS_Store
+
+# Dự án người dùng, video kiểm thử và gói phân phối
+.preview/
+dist/
+build/
+*.json.tmp

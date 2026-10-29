@@ -19,6 +19,44 @@ from pathlib import Path
 
 
 def _ffmpeg_concat_copy(inputs: list[Path], output: Path) -> bool:
+    from video_io import run_ffmpeg
+    import av
+    # Chuẩn hóa từng đoạn trước khi nối: giữ tỷ lệ, thời gian và mọi âm thanh.
+    try:
+        if not inputs or output.resolve() in {p.resolve() for p in inputs}:
+            raise ValueError('Tệp đầu ra phải khác tệp đầu vào.')
+        with av.open(str(inputs[0])) as first:
+            vs = first.streams.video[0]
+            width, height = vs.width // 2 * 2, vs.height // 2 * 2
+            fps = vs.average_rate or 30
+        with tempfile.TemporaryDirectory(prefix='whiteboard-merge-') as folder:
+            clips = []
+            for i, path in enumerate(inputs):
+                with av.open(str(path)) as source:
+                    has_audio = bool(source.streams.audio)
+                    stream = source.streams.video[0]
+                    duration = float(stream.duration * stream.time_base) if stream.duration is not None else float(source.duration / av.time_base)
+                clip = Path(folder) / f'{i}.mp4'
+                audio = [] if has_audio else ['-f', 'lavfi', '-i', 'anullsrc=r=48000:cl=stereo']
+                audio_map = '0:a:0' if has_audio else '1:a:0'
+                run_ffmpeg(['-i', path, *audio, '-map', '0:v:0', '-map', audio_map,
+                            '-vf', f'scale={width}:{height}:force_original_aspect_ratio=decrease,pad={width}:{height}:(ow-iw)/2:(oh-ih)/2,setsar=1',
+                            '-r', str(fps), '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20', '-pix_fmt', 'yuv420p',
+                            '-af', 'apad', '-c:a', 'aac', '-ar', '48000', '-ac', '2', '-t', str(duration), clip])
+                clips.append(clip)
+            listing = Path(folder) / 'concat.txt'
+            listing.write_text(''.join("file '" + p.as_posix().replace("'", "'\\''") + "'\n" for p in clips), encoding='utf-8')
+            complete = Path(folder) / 'complete.mp4'
+            run_ffmpeg(['-f', 'concat', '-safe', '0', '-i', listing, '-c', 'copy', '-movflags', '+faststart', complete])
+            import shutil as file_tools
+            file_tools.copyfile(complete, output)
+        return True
+    except (RuntimeError, ValueError, OSError, av.error.FFmpegError) as exc:
+        print(f'[warn] Không ghép được bằng FFmpeg: {exc}', file=sys.stderr)
+        return False
+
+
+def _legacy_ffmpeg_concat_copy(inputs: list[Path], output: Path) -> bool:
     ffmpeg = shutil.which("ffmpeg")
     if ffmpeg is None:
         return False
@@ -56,6 +94,12 @@ def _pyav_concat(inputs: list[Path], output: Path) -> bool:
         import av
     except ImportError:
         return False
+    for path in inputs:
+        with av.open(str(path)) as probe:
+            if probe.streams.audio:
+                raise RuntimeError('Cần FFmpeg để ghép và giữ âm thanh. Hãy cài imageio-ffmpeg.')
+    if output.resolve() in {p.resolve() for p in inputs}:
+        raise ValueError('Tệp đầu ra phải khác tệp đầu vào.')
     import numpy as np  # noqa: F401
     first = av.open(str(inputs[0]))
     vs = first.streams.video[0]
@@ -95,6 +139,9 @@ def main(argv=None) -> int:
         print(f"[err] 缺少输入文件: {', '.join(missing)}", file=sys.stderr)
         return 1
     output = Path(args.output)
+    if output.resolve() in {p.resolve() for p in inputs}:
+        print('Lỗi: Tệp đầu ra phải khác tệp đầu vào.', file=sys.stderr)
+        return 1
     output.parent.mkdir(parents=True, exist_ok=True)
 
     if _ffmpeg_concat_copy(inputs, output) or _pyav_concat(inputs, output):

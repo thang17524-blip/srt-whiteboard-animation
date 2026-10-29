@@ -34,6 +34,7 @@ import numpy as np
 _SCRIPT_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(_SCRIPT_DIR))
 import stream_render as sr  # noqa: E402
+from scene_data import validate_annotation
 
 DEFAULT_HAND = _SCRIPT_DIR.parent / "assets" / "drawing-hand.png"
 
@@ -71,7 +72,8 @@ class RegionStreamRenderer:
     def __init__(self, image_bgr: np.ndarray, annotation: dict, cfg: sr.Config,
                  hand_png: Path | None, bare_tip: bool) -> None:
         self.cfg = cfg
-        self.ann = annotation
+        h0, w0 = image_bgr.shape[:2]
+        self.ann = validate_annotation(annotation, (w0, h0), fps=cfg.fps)
         self.canvas_bgr = sr._hex_to_bgr(cfg.canvas_hex)
 
         # 输出尺寸：长边限到 cap，对齐到 grid_edge 的偶数倍（编码要求偶数）
@@ -80,6 +82,10 @@ class RegionStreamRenderer:
         align = cfg.grid_edge if cfg.grid_edge % 2 == 0 else cfg.grid_edge * 2
         w = max(align, (int(round(w0 * scale)) // align) * align)
         h = max(align, (int(round(h0 * scale)) // align) * align)
+        if cfg.output_width is not None or cfg.output_height is not None:
+            w, h = cfg.output_width, cfg.output_height
+            if not w or not h or w % align or h % align:
+                raise ValueError(f'Kích thước đầu ra phải là bội số của {align}.')
         self.out_w, self.out_h = w, h
 
         # 标注画布坐标 → 输出坐标的缩放比
@@ -269,6 +275,8 @@ class RegionStreamRenderer:
         cfg = self.cfg
         ys_all, xs_all = np.where(allowed)
         if ys_all.size == 0:
+            for _ in range(frames):
+                writer.write(self.drawn.astype(np.uint8))
             return
         top, bottom = int(ys_all.min()), int(ys_all.max())
         left, right = int(xs_all.min()), int(xs_all.max())
@@ -346,13 +354,13 @@ class RegionStreamRenderer:
         return samples, pen_lifts, sample_cell
 
     # ── 主渲染 ──
-    def render_to(self, raw_path: Path, total_ms: int) -> Path:
+    def render_to(self, raw_path: Path, total_ms: int, progress=None, cancel=None) -> Path:
         cfg = self.cfg
+        validate_annotation(self.ann, total_ms=total_ms, fps=cfg.fps)
         elements = sorted(self.ann["elements"], key=lambda e: e["reveal"]["startMs"])
-        fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-        writer = cv2.VideoWriter(str(raw_path), fourcc, cfg.fps, (self.out_w, self.out_h))
-        if not writer.isOpened():
-            raise RuntimeError("无法打开视频写入器")
+        from video_io import VideoWriter
+        writer = VideoWriter(raw_path, self.out_w, self.out_h, cfg.fps, progress, cancel,
+                             round(total_ms * cfg.fps / 1000))
 
         weight_sum = cfg.ink_weight + cfg.color_weight
         cur_ms = 0.0
@@ -376,8 +384,10 @@ class RegionStreamRenderer:
                 fill_static(start_ms)
 
                 allowed = self._allowed_mask(element, elements[idx + 1:])
-                ink_frames = max(1, round(dur_ms * cfg.ink_weight / weight_sum * cfg.fps / 1000))
-                color_frames = max(1, round(dur_ms * cfg.color_weight / weight_sum * cfg.fps / 1000))
+                end_frame = round((start_ms + dur_ms) * cfg.fps / 1000)
+                region_frames = end_frame - round(cur_ms * cfg.fps / 1000)
+                ink_frames = max(1, min(region_frames - 1, round(region_frames * cfg.ink_weight / weight_sum)))
+                color_frames = region_frames - ink_frames
 
                 if cfg.ink_path_mode == "skeleton":
                     strokes = self._region_skeleton_strokes(allowed)
@@ -402,7 +412,7 @@ class RegionStreamRenderer:
                         self._lay_ink_grid(writer, ink_frames, samples, pen_lifts, sample_cell, path, allowed)
                         centers = [self._cell_center(c) for c in path]
                     else:
-                        self._lay_ink(writer, ink_frames, [], set(), None, allowed)
+                        self._lay_ink(writer, ink_frames, [], set(), allowed)
                         centers = []
 
                 cur_ms += ink_frames * ms_per_frame
@@ -414,7 +424,7 @@ class RegionStreamRenderer:
                 cur_ms += color_frames * ms_per_frame
 
             # 凝视：补到 total_ms，并确保结尾至少停留 0.5s 完整原图
-            gaze_until = max(total_ms, cur_ms + 500)
+            gaze_until = total_ms
             # 最终帧显示完整原图（凝视）
             self.drawn[...] = self.color_img.astype(np.float32)
             fill_static(gaze_until)

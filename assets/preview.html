@@ -324,6 +324,10 @@ function reorder(from, to) {
   const arr = els(); if (from < 0 || to < 0 || from === to) return;
   const [m] = arr.splice(from, 1); arr.splice(to, 0, m);
   arr.forEach((e, i) => e.sequence = i + 1);       // 顺序即 sequence
+  // Một bút vẽ: đổi thứ tự phải đổi cả lịch vẽ, không chỉ sequence.
+  let cursor = 300;
+  arr.forEach(e => { e.reveal.startMs = cursor; cursor += e.reveal.durationMs + 200; });
+  S.cfg.sceneDurationMs = cursor + 300;
   S.sel = to; markDirty(); syncEditor(); renderList(); renderSubs(); render();
 }
 
